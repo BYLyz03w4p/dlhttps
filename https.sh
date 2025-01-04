@@ -15,11 +15,11 @@ port=$(shuf -i 1024-65535 -n 1)
 wget https://github.com/yeahwu/image/raw/refs/heads/master/caddy.tar.gz -O - | tar -xz -C /usr/local/
 echo "====输入已经DNS解析好的域名===="
 read domain
-isPort=$(netstat -ntlp| grep -E ":$port |:80 |:443 ")
+isPort=$(netstat -ntlp| grep -E ":$port ")
 if [ "$isPort" != "" ];then
    clear
    echo " ================================================== "
-   echo " 80、443或${port}端口被占用，请先释放端口再运行此脚本"
+   echo " ${port}端口被占用，请先释放端口再运行此脚本"
    echo
    echo " 端口占用信息如下："
    echo $isPort
@@ -28,16 +28,21 @@ if [ "$isPort" != "" ];then
 fi
 mkdir -p /etc/caddy
 cat >/etc/caddy/https.caddyfile<<EOF
-:$port, $domain
-route {
-   forward_proxy {
-       basic_auth $username $password
-       hide_ip
-       hide_via
-   }
-   file_server
+{
+    order forward_proxy before file_server
+}
+
+$domain:$port {
+    forward_proxy {
+        basic_auth $username $password
+        hide_ip
+        hide_via
+    }
+    
+    respond "Not Found" 404
 }
 EOF
+
 cat >/etc/systemd/system/caddy.service<<EOF
 [Unit]
 Description=Caddy
